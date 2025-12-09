@@ -1,0 +1,91 @@
+pages/api/clon.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+
+type Data =
+  | { ok: true; videoUrl: string }
+  | { ok: false; error: string };
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "Método no permitido" });
+  }
+
+  try {
+    const { text, imageUrl } = req.body as {
+      text?: string;
+      imageUrl?: string;
+    };
+
+    if (!text || !imageUrl) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Falta 'text' o 'imageUrl' en el body" });
+    }
+
+    // 1) Llamar a TTS → obtener audio
+    const audioUrl = await generateAudioFromText(text);
+
+    // 2) Llamar a API de avatar → obtener video
+    const videoUrl = await generateVideoFromAvatar(imageUrl, audioUrl);
+
+    // 3) Devolver un único resultado
+    return res.status(200).json({ ok: true, videoUrl });
+  } catch (error: any) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ ok: false, error: error.message || "Error interno" });
+  }
+}
+
+// ------------ Helpers que llaman a APIs externas ------------
+
+// TTS: texto → audio
+async function generateAudioFromText(text: string): Promise<string> {
+  const res = await fetch(process.env.TTS_API_URL as string, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.TTS_API_KEY}`,
+    },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Error generando audio (TTS)");
+  }
+
+  const data = await res.json();
+  // Ajusta esto según el formato real de la respuesta de tu proveedor de TTS
+  return data.audioUrl as string;
+}
+
+// Avatar: imagen + audio → video
+async function generateVideoFromAvatar(
+  imageUrl: string,
+  audioUrl: string
+): Promise<string> {
+  const res = await fetch(process.env.AVATAR_API_URL as string, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.AVATAR_API_KEY}`,
+    },
+    body: JSON.stringify({
+      imageUrl,
+      audioUrl,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Error generando video (Avatar)");
+  }
+
+  const data = await res.json();
+  // Ajusta esto según la respuesta de tu proveedor de avatar
+  return data.videoUrl as string;
+}
+add clon api
