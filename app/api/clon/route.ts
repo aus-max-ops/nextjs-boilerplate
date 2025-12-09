@@ -22,4 +22,3 @@ export async function GET() {
     { status: 200 }
   );
 }
-add clon api
