@@ -88,4 +88,5 @@ export default function Home() {
     </main>
   );
 }
+add simple ui
 
